@@ -1,4 +1,4 @@
-# Jing
+﻿# Jing
 # home对应主页；classify对应分类；group对应拼购；cart对应购物车；personal代表我的；
 # assets文件夹存放css和图片等；
 # views中自己建一下自己相对应的文件夹；
@@ -10,3 +10,4 @@
 	2.方法命名；必须要加上前缀；
 	3。props命名必须要加上前缀；
 	4、state命名必须要加上前缀；
+我就试一下
