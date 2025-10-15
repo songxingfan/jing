@@ -180,8 +180,9 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
 
   // 保存表格数据
   const handleSave = useCallback(async () => {
-    if (!fileInfo || !fileInfo.fileId) {
-      message.warning("请先上传Excel文件");
+    const fileId = (fileInfo && fileInfo.fileId) || (currentExam && currentExam.fileName);
+    if (!fileId) {
+      message.warning("请先上传Excel文件或选择考核");
       return;
     }
 
@@ -219,7 +220,7 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       // 发送保存请求
       const savePayload = {
         type: 'save',
-        fileId: fileInfo.fileId,
+        fileId: fileId,
         sheetIndex: getCurrentSheetIndex(),
         data: saveData,
         timestamp: Date.now()
@@ -246,7 +247,7 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
           const api = await import('@/api/subjectGrades');
           const saver = api.saveSubjectGrades;
           const res = await saver({
-            fileId: fileInfo.fileId,
+            fileId: fileId,
             data: saveData
           });
           
@@ -953,7 +954,7 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
         </Button>
         <Button
           onClick={handleSave}
-          disabled={!assetsLoaded || !fileInfo || saveStatus.saving}
+          disabled={!assetsLoaded || (!fileInfo && !currentExam?.fileName) || saveStatus.saving}
           type="primary"
           style={{ marginRight: 8 }}
         >
