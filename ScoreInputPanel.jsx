@@ -97,26 +97,31 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
     }
   }, []);
 
-  // 发送单元格更新
-  const sendCellUpdateWithTracking = useCallback((r, c, v) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-
-    let currentSheetIndex = currentSheetIndexRef.current;
-
-    // 获取当前活动工作表索引
+  // 获取当前活动工作表索引的辅助函数
+  const getCurrentSheetIndex = useCallback(() => {
     try {
       const ls = window.luckysheet;
-      if (ls && typeof ls.getSheetIndex === 'function') {
-        const activeIndex = ls.getSheetIndex();
-        if (activeIndex >= 0) {
-          currentSheetIndex = activeIndex;
-          currentSheetIndexRef.current = currentSheetIndex;
+      if (ls && typeof ls.getSheet === 'function') {
+        const sheets = ls.getSheet();
+        if (Array.isArray(sheets)) {
+          const activeIndex = sheets.findIndex(sheet => sheet.status === 1);
+          return activeIndex >= 0 ? activeIndex : 0;
         }
       }
     } catch (e) {
       console.warn('[ScoreInputPanel] Failed to get active sheet index:', e);
     }
+    return currentSheetIndexRef.current;
+  }, []);
+
+  // 发送单元格更新
+  const sendCellUpdateWithTracking = useCallback((r, c, v) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    // 获取当前活动工作表索引
+    const currentSheetIndex = getCurrentSheetIndex();
+    currentSheetIndexRef.current = currentSheetIndex;
 
     const payload = {
       type: 'cellUpdate',
@@ -156,7 +161,7 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       setCellUpdateStatus(prev => ({ ...prev, updating: false }));
       pendingCellUpdateRef.current = null;
     }
-  }, [currentExam, refreshCellContent]);
+  }, [currentExam, refreshCellContent, getCurrentSheetIndex]);
 
   // 绑定Luckysheet事件监听器
   const bindLuckysheetEvents = useCallback(() => {
@@ -198,16 +203,9 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
     const onSwitchSheet = function (index, skipServerNotify = false) {
       let newSheetIndex = typeof index === 'number' ? index : 0;
       
-      try {
-        const ls = window.luckysheet;
-        if (ls && typeof ls.getSheetIndex === 'function') {
-          const activeIndex = ls.getSheetIndex();
-          if (activeIndex >= 0) {
-            newSheetIndex = activeIndex;
-          }
-        }
-      } catch (e) {
-        console.warn('[ScoreInputPanel] Failed to get active sheet index:', e);
+      // 如果传入的index有效，直接使用；否则尝试获取当前活动的工作表
+      if (typeof index !== 'number' || index < 0) {
+        newSheetIndex = getCurrentSheetIndex();
       }
 
       currentSheetIndexRef.current = newSheetIndex;
@@ -257,13 +255,8 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
           if (target && target.classList.contains('luckysheet-sheets-item')) {
             setTimeout(() => {
               try {
-                const ls = window.luckysheet;
-                if (ls && typeof ls.getSheetIndex === 'function') {
-                  const activeIndex = ls.getSheetIndex();
-                  if (activeIndex >= 0) {
-                    onSwitchSheet(activeIndex, true);
-                  }
-                }
+                const activeIndex = getCurrentSheetIndex();
+                onSwitchSheet(activeIndex, true);
               } catch (e) {
                 console.warn('[ScoreInputPanel] Failed to get active sheet after click:', e);
               }
@@ -274,7 +267,7 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
     }, 1000);
 
     luckysheetEventsBoundRef.current = true;
-  }, [sendCellUpdateWithTracking, currentExam]);
+  }, [sendCellUpdateWithTracking, currentExam, getCurrentSheetIndex]);
 
   // 构建Luckysheet数据
   const buildLuckysheetData = useCallback((sheetsFromApi) => {
