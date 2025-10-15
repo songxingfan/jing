@@ -103,8 +103,16 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       const ls = window.luckysheet;
       if (ls && typeof ls.getSheet === 'function') {
         const sheets = ls.getSheet();
+        console.log('[ScoreInputPanel] getSheet() returned:', typeof sheets, sheets);
+        
+        // 如果 sheets 是对象（单个工作表），直接返回 0
+        if (sheets && typeof sheets === 'object' && !Array.isArray(sheets)) {
+          console.log('[ScoreInputPanel] Single sheet object, status:', sheets.status, 'name:', sheets.name);
+          return 0; // 单个工作表时索引为 0
+        }
+        
+        // 如果 sheets 是数组（多个工作表），查找 status === 1 的工作表
         if (Array.isArray(sheets)) {
-          // 查找 status === 1 的工作表（当前活动的工作表）
           const activeIndex = sheets.findIndex(sheet => sheet && sheet.status === 1);
           if (activeIndex >= 0) {
             console.log('[ScoreInputPanel] Found active sheet at index:', activeIndex, 'sheet name:', sheets[activeIndex]?.name);
