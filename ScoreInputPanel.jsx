@@ -104,13 +104,24 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       if (ls && typeof ls.getSheet === 'function') {
         const sheets = ls.getSheet();
         if (Array.isArray(sheets)) {
-          const activeIndex = sheets.findIndex(sheet => sheet.status === 1);
-          return activeIndex >= 0 ? activeIndex : 0;
+          // 查找 status === 1 的工作表（当前活动的工作表）
+          const activeIndex = sheets.findIndex(sheet => sheet && sheet.status === 1);
+          if (activeIndex >= 0) {
+            console.log('[ScoreInputPanel] Found active sheet at index:', activeIndex, 'sheet name:', sheets[activeIndex]?.name);
+            return activeIndex;
+          } else {
+            console.warn('[ScoreInputPanel] No active sheet found (status=1), sheets count:', sheets.length);
+            // 打印所有工作表的状态用于调试
+            sheets.forEach((sheet, idx) => {
+              console.log(`[ScoreInputPanel] Sheet ${idx}: name="${sheet?.name}", status=${sheet?.status}`);
+            });
+          }
         }
       }
     } catch (e) {
       console.warn('[ScoreInputPanel] Failed to get active sheet index:', e);
     }
+    console.log('[ScoreInputPanel] Using fallback sheet index:', currentSheetIndexRef.current);
     return currentSheetIndexRef.current;
   }, []);
 
@@ -132,6 +143,9 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       v: v,
       version: 1
     };
+
+    // 记录当前发送的sheetIndex，便于调试
+    console.log('[ScoreInputPanel] Sending cellUpdate with sheetIndex:', currentSheetIndex, 'for cell [', r, ',', c, '] with value:', v);
 
     pendingCellUpdateRef.current = {
       timestamp: Date.now(),
@@ -208,7 +222,10 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
         newSheetIndex = getCurrentSheetIndex();
       }
 
+      const oldSheetIndex = currentSheetIndexRef.current;
       currentSheetIndexRef.current = newSheetIndex;
+      
+      console.log('[ScoreInputPanel] Sheet switched from', oldSheetIndex, 'to', newSheetIndex, 'skipServerNotify:', skipServerNotify);
 
       if (!skipServerNotify) {
         const payload = {
@@ -389,6 +406,12 @@ export default function ScoreInputPanel({ currentExam, onUpdateExam }) {
       case 'sheetData':
       case 'sheetSwitch': {
         try {
+          // 更新本地的工作表索引，确保与服务器同步
+          if (typeof data.sheetIndex === 'number') {
+            currentSheetIndexRef.current = data.sheetIndex;
+            console.log('[ScoreInputPanel] Updated currentSheetIndexRef to:', data.sheetIndex);
+          }
+
           const ls = window.luckysheet;
           const containerEl = luckysheetContainerRef.current;
 
